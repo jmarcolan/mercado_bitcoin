@@ -215,6 +215,7 @@ class Boot_dados:
     def atualiza_ordens(self):
         self._get_ordens()
 
+        ## UUMA DAS FUNCOES MAIS IMPORTANTES
         def cria_funca_resposta(e):
             def resposta_compra(recebe_resposta):
                 r_criou_operacao = recebe_resposta["status_code"] == 100
@@ -262,11 +263,28 @@ class Boot_dados:
             return resposta_compra
 
         def cria_compra(e):
+            pair = self.dados_bot["coin"]
             valor     = e["valor_compra"]
             qnt_moeda = e["qnt_comprada"]
             r_existe_dinheiro = self.dados_bot["qnt_brl_atual"] > valor*qnt_moeda
-            pair = self.dados_bot["coin"]
-            api_negociacao.place_buy_order(str(valor), str(qnt_moeda), pair, cria_funca_resposta(e))
+            
+            def get_livro(recebe_livo_resposta):
+                r_livro = recebe_resposta["status_code"] == 100
+                if r_livro:
+                    melhor_valor_compra = recebe_livo_resposta["orderbook"]["bids"][0] 
+                    melhor_valor_venda = recebe_livo_resposta["orderbook"]["asks"][0] 
+                    espread = melhor_valor_compra - melhor_valor_venda
+                    bom_valor_book = melhor_valor_compra + espread * 0.2
+                    r_melhor_valor_book = bom_valor_book < valor
+                    if r_melhor_valor:
+                        e["valor_compra"] = bom_valor_book
+    
+                    api_negociacao.place_buy_order(str(e["valor_compra"]), str(qnt_moeda), pair, cria_funca_resposta(e))
+
+                        
+                        
+            api_negociacao.list_orderbook(pair, get_livro)
+
 
         ls_compra_aberta_pelo_bot = list(
             map(cria_compra,
@@ -399,143 +417,8 @@ class Boot_dados:
 if __name__ == "__main__":
     constroi_bd_bot()
     constroi_bd_bot_operacao()
-    bot = inicializa_bot(3)
+    bot = inicializa_bot(4,20)
     bd = Boot_dados(bot, 0.11)
-    # bd.cria_ordens(2.1)
+    bd.cria_ordens(2.09)
     bd.atualiza_ordens()
     print(bd.dados_bot)
-    # while True:
-    #     time.sleep(100)
-    #     bd.atualiza_ordens()
-
-    # bd.cria_ordens(1)
-    # bd.cancela_ordens([1,2])
-
-# dic_ordem_criada = {"coin": coin,
-#                         "qnt": 0.2,
-#                         "compra": negociado_compra,
-#                         "venda": negociado_compra + porcentagem,
-#                         "fee_total": 0,
-#                         "lucro": 0,
-#                         "estado": "aberta"}
-
-
-
-
-
-
-# class bot_trader:
-#     def _inicializa_qnt_moeda_digital(self,id):
-#         r_existe_bot = False
-#         if r_existe_bot:
-#             return 0
-#         else:
-#             return 0
-
-#     def _inicializa_qnt_moeda_real(self, id):
-#         r_existe_bot = False
-#         if r_existe_bot:
-#             def get_bd_qnt_():
-#                 pass
-
-
-#             return 0
-#         else:
-#             return 50
-        
-        
-#         return 100
-    
-#     def __init__(self, id):
-#         self.lista_ordens_q_controla_aberta = ["200","300"]
-#         self.qnt_dinherio_atual = self._inicializa_qnt_moeda_real(id)
-#         self.qnt_moeda_digital = self._inicializa_qnt_moeda_digital(id)
-    
-#     def _get_ja_possui_operacoes(self):
-#         return False
-
-#     def _atualiza_ordem_negociacao(self):
-#         pass
-
-#     def _create_ordem_negociacao(self):
-#         pass
-
-#     def _operacao_compra(self):
-#         r_possui_operacao_aberta = self._get_ja_possui_operacoes()
-
-#         if r_possui_operacao_aberta:
-#             self._atualiza_ordem_negociacao()
-#         else:
-#             self._create_ordem_negociacao()
-
-
-
-
-#     def _operacao_compra(self, porcentagem, valor_negociado, tempo):
-#         pass
-
-#     def _operacao_venda(self, porcentagem, valor_negociado, tempo):
-#         pass
-
-#     def _get_qnt_moeda_digital(self):
-#         return 100
-
-#     def _get_qnt_dinheiro_atual(self):
-#         return 0
-
-#     def ajusta_portifolio_por(self, por_para_ajustar, v_negociacao, tempo):
-#         def get_porcento_atual():
-#             self.qnt_moeda_digital = self._get_qnt_moeda_digital()
-#             self.qnt_dinherio_atual = self._get_qnt_dinheiro_atual()
-
-#             s = self.qnt_moeda_digital*v_negociacao * 100/(self.qnt_moeda_digital*v_negociacao + self.qnt_dinherio_atual) # so nao pode ser zero
-
-#             s =  s/100
-
-#             return s 
-        
-
-
-
-#         por_atual = get_porcento_atual()
-#         r_oper_compra = por_para_ajustar >= por_atual
-#         r_oper_venda = por_para_ajustar < por_atual
-#         if r_oper_compra:
-#             ajuste = por_para_ajustar - por_atual
-#             # self._operacao_compra(ajuste , v_negociacao, tempo)
-#         if r_oper_venda:
-#             self._operacao_venda(por_atual - por_para_ajustar, v_negociacao, tempo)
-
-# resposta por criar
-# "order": {
-#             "order_id": 39180215,
-#             "coin_pair": "BRLXRP",
-#             "order_type": 1,
-#             "status": 2,
-#             "has_fills": false,
-#             "quantity": "0.10000000",
-#             "limit_price": "2.10100",
-#             "executed_quantity": "0.00000000",
-#             "executed_price_avg": "0.00000",  
-#             "fee": "0.00000000",
-#             "created_timestamp": "1612220970",
-#             "updated_timestamp": "1612220970",
-#             "operations": []
-#         }
-
-# resposta por terminar
-# "order": {
-#             "order_id": 39180215,
-#             "coin_pair": "BRLXRP",
-#             "order_type": 1,
-#             "status": 3,
-#             "has_fills": false, # nao foi preenchida
-#             "quantity": "0.10000000",
-#             "limit_price": "2.10100",
-#             "executed_quantity": "0.00000000",
-#             "executed_price_avg": "0.00000",
-#             "fee": "0.00000000", # quantidade paga
-#             "created_timestamp": "1612220970",
-#             "updated_timestamp": "1612221038",
-#             "operations": []
-#         }

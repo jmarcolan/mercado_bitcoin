@@ -2,7 +2,7 @@
 import negociacao as ng
 import sqlite3
 import negociacao as api_negociacao
-
+import time
 BD_PATH = "dados_varias_coin.db"
 def constroi_bd_bot():
     create_table_sql = """
@@ -105,6 +105,19 @@ class Boot_dados:
         self.dados_bot = dados_bot
         self._get_ordens()
 
+
+    def _atualiza_bot(self):
+        conn = sqlite3.connect(BD_PATH)
+        cur = conn.cursor()
+        sql_str = f"""UPDATE bot
+        SET  qnt_brl_atual = {self.dados_bot['qnt_brl_atual']},
+        qnt_coin = {self.dados_bot['qnt_coin']}
+        WHERE id == {self.dados_bot['bot_id']}"""
+        cur.execute(sql_str)
+        conn.commit()
+        conn.close()
+        
+        
     def _parse_ordens(self,elemento):
         # corrigir
         
@@ -228,21 +241,25 @@ class Boot_dados:
                     
                     if r_completada:
                         def atualiza_banco_dados(elemento, ordem):
+                            valor_compra = float(ordem['executed_price_avg'])
+                            qnt_comprada = float(ordem['executed_quantity']) - float(ordem['fee'])
                             conn = sqlite3.connect(BD_PATH)
                             cur = conn.cursor()
                             sql_str = f"""UPDATE operacoes_bot
                             SET estado_ordem = 'compra_executada',
                             order_compra_id = {ordem['order_id']},
-                            valor_compra = '{ordem['executed_price_avg']}',
-                            qnt_comprada = '{str(float(ordem['executed_quantity']) - float(ordem['fee']))}' 
+                            valor_compra = '{str(valor_compra)}',
+                            qnt_comprada = '{str(qnt_comprada)}' 
                             WHERE id == {elemento['id_ordem']}"""
                             cur.execute(sql_str)
                             conn.commit()
                             conn.close()
+
+                            self.dados_bot["qnt_brl_atual"]=  self.dados_bot["qnt_brl_atual"] - (qnt_comprada *valor_compra)
+                            self.dados_bot["qnt_coin"]=  self.dados_bot["qnt_coin"] + qnt_comprada 
                     
                         atualiza_banco_dados(e,ordem)
             return resposta_compra
-
 
         def cria_compra(e):
             valor     = e["valor_compra"]
@@ -256,8 +273,9 @@ class Boot_dados:
             filter(lambda x: x["estado_ordem"] == "compra_aberta",
             self.ls_ordens )))
 
+
         def get_se_executada(e):
-            api_negociacao.get_order(e["order_compra_id"], self.dados_bot["coin"], cria_funca_resposta(e) )
+            api_negociacao.get_order(e["order_compra_id"], self.dados_bot["coin"], create_funcao_venda(e) )
         
 
         ls_compra_criada = list(map(get_se_executada,
@@ -266,37 +284,129 @@ class Boot_dados:
 
 
         # estado_ordem :candelada,"compra_aberta", "compra_criada", "compra_executada",venda_aberta", "venda_criada", "venda_executada", "finalizada"
-
         def cria_venda(e):
-            pass
+            # se a compra foi executada abrir uma venda isso é no sql
+            def update_banco_dados(e):
+                conn = sqlite3.connect(BD_PATH)
+                cur = conn.cursor()
+                sql_str = f"""UPDATE operacoes_bot
+                SET estado_ordem = 'venda_aberta',
+                "valor_venda"= '{str(e['valor_compra'] + self.dados_bot["distancia"])}',
+                "qnt_vendida"= '{e['qnt_comprada']}'
+                WHERE id == {e["id_ordem"]}"""
+
+                cur.execute(sql_str)
+                conn.commit()
+                conn.close()
+            # se aberta uma venda abrir uma ordem de venda no mercado,
+            update_banco_dados(e)
+
         
-        ls_compra_executada = list(filter(lambda x: x["estado_ordem"] == "compra_executada", self.ls_ordens ))
+        ls_compra_executada = list(map(cria_venda,
+            filter(lambda x: x["estado_ordem"] == "compra_executada", 
+            self.ls_ordens )))
+        
+        def create_funcao_venda(e):
+            def resposta_venda(recebe_resposta):
+                r_criou_operacao = recebe_resposta["status_code"] == 100
+                if r_criou_operacao:
+                    ordem = recebe_resposta["response_data"]["order"]
+                    r_aberta = ordem["status"] == 2
+                    r_completada = ordem["status"] == 4
+                    r_ja_comprada = e["estado_ordem"] == "venda_criada"
+
+
+                    if r_aberta and not r_ja_comprada:
+                        def atualiza_banco_dados(elemento, ordem):
+                            conn = sqlite3.connect(BD_PATH)
+                            cur = conn.cursor()
+                            sql_str = f"""UPDATE operacoes_bot
+                            SET estado_ordem = 'venda_criada',
+                            order_venda_id = '{ordem['order_id']}'
+                            WHERE id == {elemento["id_ordem"]}"""
+
+                            cur.execute(sql_str)
+                            conn.commit()
+                            conn.close()
+                    
+                        atualiza_banco_dados(e,ordem)
+                    
+                    if r_completada:
+                        def atualiza_banco_dados(elemento, ordem):
+                            valor_venda = float(ordem['executed_price_avg']) - float(ordem['fee'])
+                            qnt_venda = float(ordem['executed_quantity'])
+                            conn = sqlite3.connect(BD_PATH)
+                            cur = conn.cursor()
+                            sql_str = f"""UPDATE operacoes_bot
+                            SET estado_ordem = 'venda_executada',
+                            order_venda_id = {ordem['order_id']},
+                            valor_venda = '{str(valor_venda)}',
+                            qnt_vendida = '{str(qnt_venda)}' 
+                            WHERE id == {elemento['id_ordem']}"""
+                            cur.execute(sql_str)
+                            conn.commit()
+                            conn.close()
+
+                            self.dados_bot["qnt_brl_atual"]=  self.dados_bot["qnt_brl_atual"] + (valor_venda * qnt_venda)
+                            self.dados_bot["qnt_coin"]=  self.dados_bot["qnt_coin"] - qnt_venda
+                        
+                        atualiza_banco_dados(e,ordem)
+            return resposta_venda
+
+
 
         def get_venda_aberta(e):
-            pass
+            # se ta liberado para venda abrir uma ordem no mercado bitcoin
+            valor     = e["valor_venda"]
+            qnt_moeda = e["qnt_vendida"]
+            r_existe_dinheiro = self.dados_bot["qnt_brl_atual"] > valor*qnt_moeda
+            pair = self.dados_bot["coin"]
+   
+            api_negociacao.place_sell_order(str(valor), str(qnt_moeda), pair, create_funcao_venda(e))
+
+
+        ls_venda_aberta = list(map(get_venda_aberta,
+            filter(lambda x: x["estado_ordem"] == "venda_aberta", 
+            self.ls_ordens )))
 
         def get_venda_foi_executada(e):
-            pass
+            # caso abra uma ordem de venda esperar
+            api_negociacao.get_order(e["order_venda_id"], self.dados_bot["coin"], create_funcao_venda(e) )
+            
+        ls_venda_criada = list(map(get_venda_foi_executada,
+            filter(lambda x: x["estado_ordem"] == "venda_criada", 
+            self.ls_ordens )))
 
         def finaliza(e):
-            pass
+            # gestão do banco de dados para finalizar a operação ($profit)
+            conn = sqlite3.connect(BD_PATH)
+            cur = conn.cursor()
+            sql_str = f"""UPDATE operacoes_bot
+            SET estado_ordem = 'finalizada'
+            WHERE id == {e['id_ordem']}"""
+            cur.execute(sql_str)
+            conn.commit()
+            conn.close()
         
         
-
+        ls_venda_executada = list(map(finaliza,
+        filter(
+            lambda x: x["estado_ordem"] == "venda_executada", 
+            self.ls_ordens )))
         
-        ls_venda_aberta = list(filter(lambda x: x["estado_ordem"] == "venda_aberta", self.ls_ordens ))
-        ls_venda_criada = list(filter(lambda x: x["estado_ordem"] == "venda_criada", self.ls_ordens ))
-        ls_venda_executada = list(filter(lambda x: x["estado_ordem"] == "venda_executada", self.ls_ordens ))
-
-        # um vez executad amarcar como finalizada
+        self._atualiza_bot()
 
 if __name__ == "__main__":
     constroi_bd_bot()
     constroi_bd_bot_operacao()
-    bot = inicializa_bot(2)
-    bd = Boot_dados(bot, 0.1)
-    # bd.cria_ordens(1)
+    bot = inicializa_bot(3)
+    bd = Boot_dados(bot, 0.11)
+    # bd.cria_ordens(2.1)
     bd.atualiza_ordens()
+    print(bd.dados_bot)
+    # while True:
+    #     time.sleep(100)
+    #     bd.atualiza_ordens()
 
     # bd.cria_ordens(1)
     # bd.cancela_ordens([1,2])

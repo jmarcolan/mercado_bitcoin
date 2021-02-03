@@ -123,7 +123,7 @@ def get_order(order_id, coin_pair="XRP", fnc_retorno = None):
 
 
 
-def place_sell_order(price: str, quantity="0.1", coin_pair="XRP"):
+def place_sell_order(price: str, quantity="0.1", coin_pair="XRP", fnc_retorno = None):
     tapi_nonce = str(int(time.time()))
     params = {
     'tapi_method': 'place_sell_order',
@@ -132,7 +132,10 @@ def place_sell_order(price: str, quantity="0.1", coin_pair="XRP"):
     "quantity":  quantity,
     "limit_price": price}
 
-    conectar(params,mostra_tela_resultado)
+    if fnc_retorno == None:
+        conectar(params,mostra_tela_resultado)
+    else:
+        conectar(params,fnc_retorno)
 
 
 def list_orderbook(coin_pair="BRLBTC"):

@@ -44,23 +44,23 @@ import work as wk
 #     m1.novo_tick(next(g1)[1])
 
 
-def test_for_ganhando():
-    m1 = wk.Mercador(100)
+# def test_for_ganhando():
+#     m1 = wk.Mercador_back_teste(100)
 
-    #comprar 30
-    m1.ajusta_portifolio_por(0.3,100)
-    # vender 10
-    m1.ajusta_portifolio_por(0.2,120)
-    print(m1)
+#     #comprar 30
+#     m1.ajusta_portifolio_por(0.3,100)
+#     # vender 10
+#     m1.ajusta_portifolio_por(0.2,120)
+#     print(m1)
 
-def test_for_perdendo():
-    m1 = wk.Mercador(100)
+# def test_for_perdendo():
+#     m1 = wk.Mercador(100)
 
-    #comprar 30
-    m1.ajusta_portifolio_por(0.3,120)
-    # vender 10
-    m1.ajusta_portifolio_por(0.2,100)
-    print(m1)
+#     #comprar 30
+#     m1.ajusta_portifolio_por(0.3,120)
+#     # vender 10
+#     m1.ajusta_portifolio_por(0.2,100)
+#     print(m1)
 
 
 

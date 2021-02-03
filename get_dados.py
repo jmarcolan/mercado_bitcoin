@@ -209,9 +209,12 @@ def starta_banco_de_dados(coin):
 
 if __name__ == "__main__":
 
-    starta_banco_de_dados("BTC")
-    starta_banco_de_dados("XRP")
-    starta_banco_de_dados("LTC")
+    # starta_banco_de_dados("BTC")
+    # starta_banco_de_dados("XRP")
+    # starta_banco_de_dados("LTC")
+
+
+    atualiza_ultimo_criado("XRP")
     # atualiza_ultimo_criado(coin)
 # atualiza_ultimo_criado()
 # if __name__ == "__main__":

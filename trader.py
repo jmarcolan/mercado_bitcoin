@@ -269,16 +269,16 @@ class Boot_dados:
             r_existe_dinheiro = self.dados_bot["qnt_brl_atual"] > valor*qnt_moeda
             
             def get_livro(recebe_livo_resposta):
-                r_livro = recebe_resposta["status_code"] == 100
+                r_livro = recebe_livo_resposta["status_code"] == 100
                 if r_livro:
-                    melhor_valor_compra = recebe_livo_resposta["orderbook"]["bids"][0] 
-                    melhor_valor_venda = recebe_livo_resposta["orderbook"]["asks"][0] 
-                    espread = melhor_valor_compra - melhor_valor_venda
+                    melhor_valor_compra = float(recebe_livo_resposta["response_data"]["orderbook"]["bids"][0]["limit_price"])
+                    melhor_valor_venda = float(recebe_livo_resposta["response_data"]["orderbook"]["asks"][0]["limit_price"])
+                    espread =  melhor_valor_venda - melhor_valor_compra
                     bom_valor_book = melhor_valor_compra + espread * 0.2
                     r_melhor_valor_book = bom_valor_book < valor
-                    if r_melhor_valor:
+                    if r_melhor_valor_book:
                         e["valor_compra"] = bom_valor_book
-    
+                    
                     api_negociacao.place_buy_order(str(e["valor_compra"]), str(qnt_moeda), pair, cria_funca_resposta(e))
 
                         
@@ -414,11 +414,14 @@ class Boot_dados:
         
         self._atualiza_bot()
 
+
+
 if __name__ == "__main__":
     constroi_bd_bot()
     constroi_bd_bot_operacao()
+    
     bot = inicializa_bot(4,20)
     bd = Boot_dados(bot, 0.11)
-    bd.cria_ordens(2.09)
+    # bd.cria_ordens(2.09)
     bd.atualiza_ordens()
     print(bd.dados_bot)

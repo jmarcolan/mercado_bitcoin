@@ -26,6 +26,8 @@ WHERE id == 4;
 SELECT * from dados_trade WHERE date > {tm_ini} AND coin=="{coin}";
 'SELECT * from dados_trade WHERE date > 1612393530 AND coin=="XRP";'
 
+
+SELECT * from operacoes_bot where bot_id == 4;
 ```
 4|3|venda_aberta|0.10923|0.10923|39578128|0.16923|0.10923|||
 

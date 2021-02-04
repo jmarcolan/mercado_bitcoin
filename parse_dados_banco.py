@@ -1,13 +1,14 @@
 import sqlite3
 import pandas as pd
 import datetime
+import get_dados as api_dados
 
 BD_PATH = "dados_varias_coin.db"
 def pega_dados_since_db(tempo_passado, coin='XRP', BD_PATH = "dados_varias_coin.db"):
     
     datetime_object = datetime.datetime.now() - datetime.timedelta(minutes=tempo_passado)
     tm_ini = int(datetime_object.timestamp())
-    con = sqlite3.connect("dados_varias_coin.db")
+    con = sqlite3.connect(BD_PATH)
 
     df = pd.read_sql_query(f'SELECT * from dados_trade WHERE date > {tm_ini} AND coin=="{coin}";', con)
     df["Date"] =df['date'].map(datetime.datetime.fromtimestamp)
@@ -22,6 +23,10 @@ def pega_dados_since_db(tempo_passado, coin='XRP', BD_PATH = "dados_varias_coin.
 
 
 def gera_pandas(df):
+    def filter_dic_vaziu(dict_gerado):
+        r_dict_vaziu = not bool(dict_gerado)
+        return not r_dict_vaziu
+
     index, index_shift = gera_index_candle(df)
     index_g = zip(index, index_shift)
 
@@ -38,8 +43,8 @@ def gera_index_candle(df, timer=5):
     d_start = df["Date"].iloc[0]
     d_fim = df["Date"].iloc[-1]
     
-    d_start_shift = d_start + timedelta(minutes=timer)
-    d_fim_shift = d_fim + timedelta(minutes=timer) 
+    d_start_shift = d_start +  datetime.timedelta(minutes=timer)
+    d_fim_shift = d_fim +  datetime.timedelta(minutes=timer) 
     
     index = pd.date_range(start=d_start, end=d_fim, freq=f'{timer}min')
     index_shift = pd.date_range(start=d_start_shift, end=d_fim_shift, freq=f'{timer}min')
@@ -66,6 +71,13 @@ def calcula_candle(df, d_inicio, d_fim):
         return {}
 
 
+def get_ultimo_candle_from_db(coin="XRP", tempo=5):
+    api_dados.atualiza_ultimo_criado("XRP")
+    r_existe_dados, df_open = pega_dados_since_db(5)
+    # .iloc[-1]["close"]
+    return df_open
+    
+
 if __name__ == "__main__":
-    r_existe_dados, df_open = pega_dados_since_db(30)
-    df_open.head()
+    df_candle = get_ultimo_candle_from_db("XRP")
+    df_candle.head()

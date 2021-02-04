@@ -2,6 +2,10 @@ import work as wk
 import pandas as pd
 from datetime import datetime, timedelta
 
+
+import parse_dados_banco as pbd
+
+
 def import_pandas_from_csv(path):
     def map_strin_date(x):
         return datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
@@ -33,6 +37,16 @@ def gerador_dados(df_criado):
     for row in df_criado.iterrows():
         yield row
 
+def faz_estrategia_live(grid_valor, coin):
+    db_candl = pbd.get_ultimo_candle_from_db(coin)
+    df_estrategia = estrategia_grid(db_candl,grid_valor)
+    r_aciona = df_estrategia.iloc[-1]["aciona"]
+    v_close = df_estrategia.iloc[-1]["close"]
+    return r_aciona, v_close
+
+
+
+
 def back_test_grid(df_inicial, m1, df_estrategia):
 
     df_criado = df_estrategia
@@ -49,3 +63,8 @@ def back_test_grid(df_inicial, m1, df_estrategia):
         m1.executa_ordens(linha["close"])
 
     return m1
+
+
+if __name__ == "__main__":
+    r_aciona,v_close = faz_estrategia_live(0.06,"XRP")
+    print(r_aciona,v_close)

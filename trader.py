@@ -291,39 +291,7 @@ class Boot_dados:
             filter(lambda x: x["estado_ordem"] == "compra_aberta",
             self.ls_ordens )))
 
-
-        def get_se_executada(e):
-            api_negociacao.get_order(e["order_compra_id"], self.dados_bot["coin"], create_funcao_venda(e) )
-        
-
-        ls_compra_criada = list(map(get_se_executada,
-            filter(lambda x: x["estado_ordem"] == "compra_criada", 
-            self.ls_ordens )))
-
-
-        # estado_ordem :candelada,"compra_aberta", "compra_criada", "compra_executada",venda_aberta", "venda_criada", "venda_executada", "finalizada"
-        def cria_venda(e):
-            # se a compra foi executada abrir uma venda isso é no sql
-            def update_banco_dados(e):
-                conn = sqlite3.connect(BD_PATH)
-                cur = conn.cursor()
-                sql_str = f"""UPDATE operacoes_bot
-                SET estado_ordem = 'venda_aberta',
-                "valor_venda"= '{str(e['valor_compra'] + self.dados_bot["distancia"])}',
-                "qnt_vendida"= '{e['qnt_comprada']}'
-                WHERE id == {e["id_ordem"]}"""
-
-                cur.execute(sql_str)
-                conn.commit()
-                conn.close()
-            # se aberta uma venda abrir uma ordem de venda no mercado,
-            update_banco_dados(e)
-
-        
-        ls_compra_executada = list(map(cria_venda,
-            filter(lambda x: x["estado_ordem"] == "compra_executada", 
-            self.ls_ordens )))
-        
+            
         def create_funcao_venda(e):
             def resposta_venda(recebe_resposta):
                 r_criou_operacao = recebe_resposta["status_code"] == 100
@@ -370,6 +338,42 @@ class Boot_dados:
                         
                         atualiza_banco_dados(e,ordem)
             return resposta_venda
+
+
+
+        def get_se_executada(e):
+            api_negociacao.get_order(e["order_compra_id"], self.dados_bot["coin"], create_funcao_venda(e) )
+        
+
+        ls_compra_criada = list(map(get_se_executada,
+            filter(lambda x: x["estado_ordem"] == "compra_criada", 
+            self.ls_ordens )))
+
+
+        # estado_ordem :candelada,"compra_aberta", "compra_criada", "compra_executada",venda_aberta", "venda_criada", "venda_executada", "finalizada"
+        def cria_venda(e):
+            # se a compra foi executada abrir uma venda isso é no sql
+            def update_banco_dados(e):
+                conn = sqlite3.connect(BD_PATH)
+                cur = conn.cursor()
+                sql_str = f"""UPDATE operacoes_bot
+                SET estado_ordem = 'venda_aberta',
+                "valor_venda"= '{str(e['valor_compra'] + self.dados_bot["distancia"])}',
+                "qnt_vendida"= '{e['qnt_comprada']}'
+                WHERE id == {e["id_ordem"]}"""
+
+                cur.execute(sql_str)
+                conn.commit()
+                conn.close()
+            # se aberta uma venda abrir uma ordem de venda no mercado,
+            update_banco_dados(e)
+
+        
+        ls_compra_executada = list(map(cria_venda,
+            filter(lambda x: x["estado_ordem"] == "compra_executada", 
+            self.ls_ordens )))
+        
+        
 
 
 

@@ -2,6 +2,7 @@ import work as wk
 import pandas as pd
 from datetime import datetime, timedelta
 
+import numpy as np
 
 import parse_dados_banco as pbd
 
@@ -37,12 +38,43 @@ def gerador_dados(df_criado):
     for row in df_criado.iterrows():
         yield row
 
+
+# Primeira estratégia live.
 def faz_estrategia_live(grid_valor, coin):
     db_candl = pbd.get_ultimo_candle_from_db(coin)
     df_estrategia = estrategia_grid(db_candl,grid_valor)
     r_aciona = df_estrategia.iloc[-1]["aciona"]
     v_close = df_estrategia.iloc[-1]["close"]
     return r_aciona, v_close
+
+
+
+
+
+def range_do_valor(valor, limite_inferior, limite_superior, variacao):
+    def get_range( limite_inferior, limite_superior, variacao):
+        range_superior = np.arange(limite_inferior, limite_superior, variacao)
+        range_inferior = np.arange(limite_inferior-variacao, limite_superior-variacao,variacao)
+        range_bot = zip(range_superior,range_inferior)
+        return range_bot
+
+    range_bot = get_range(limite_inferior,limite_superior,variacao)
+    for rang_sup, range_inf in range_bot:
+        r_e_o_range = valor>range_inf and valor< rang_sup
+        if r_e_o_range:
+            rs_i = range_inf
+            rs_s = rang_sup
+            break
+    return round(range_inf,8), round(rang_sup,8)
+
+
+def faz_estrategia_live_aprimorada(limite_inferior, limite_superior, grid_valor, coin):
+    # estrategia de grid para abrir as ordens de compra quando o candle tiver no range.
+    db_candl = pbd.get_ultimo_candle_from_db(coin)
+    v_close = db_candl.iloc[-1]["close"]
+    v_limite_inf, v_limite_sup = range_do_valor(v_close,limite_inferior,limite_superior,grid_valor)
+    return v_limite_inf, v_limite_sup, v_close
+
 
 
 

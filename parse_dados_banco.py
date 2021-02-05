@@ -19,6 +19,7 @@ def pega_dados_since_db(tempo_passado, coin='XRP', BD_PATH = "dados_varias_coin.
         df_open.set_index('date', inplace=True)
         return r_existe_dados, df_open
     else:
+        print("deu pau e nao tem os dados")
         return r_existe_dados, None 
 
 

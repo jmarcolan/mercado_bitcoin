@@ -5,22 +5,8 @@ import negociacao as api_negociacao
 import time
 
 
+
 BD_PATH = "dados_varias_coin.db"
-def constroi_bd_bot():
-    create_table_sql = """
-        CREATE TABLE IF NOT EXISTS bot (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        coin TEXT NOT NULL,
-        qnt_brl_inicial REAL,
-        qnt_coin REAL,
-        qnt_brl_atual REAL,
-        dis REAL
-        );
-        """
-    conn = sqlite3.connect(BD_PATH)
-    c = conn.cursor()
-    c.execute(create_table_sql)
-    c.close()
 
 def constroi_bd_bot_operacao():
     # estado_ordem :candelada,"compra_aberta", "compra_criada", "compra_executada",venda_aberta", "venda_criada", "venda_executada", "finalizada"
@@ -36,12 +22,12 @@ def constroi_bd_bot_operacao():
         valor_compra TEXT,
         qnt_comprada TEXT,
         order_compra_id INTEGER,
-        
+        time_compra INTEGER,
 
         valor_venda TEXT,
         qnt_vendida TEXT,
         order_venda_id INTEGER,
-        
+        time_venda INTEGER,
 
         lucro TEXT,
         fee TEXT
@@ -53,7 +39,35 @@ def constroi_bd_bot_operacao():
     c.execute(create_table_sql)
     c.close()
 
-def inicializa_bot(id, brl=100, distancia=0.06, pair="XRP"):
+
+
+
+
+def constroi_bd_bot():
+    create_table_sql = """
+        CREATE TABLE IF NOT EXISTS bot (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        coin TEXT NOT NULL,
+        qnt_brl_inicial REAL,
+        qnt_coin REAL,
+        qnt_brl_atual REAL,
+
+        grid_valor REAL,
+        limite_inferior REAL,
+        limite_superior REAL,
+        qnt_trade REAL
+
+        );
+        """
+    conn = sqlite3.connect(BD_PATH)
+    c = conn.cursor()
+    c.execute(create_table_sql)
+    c.close()
+
+
+
+def inicializa_bot(id, brl=20, grid_valor=0.06, limite_inferior=1.9, limite_superior=3.10, qnt_trade=0.13, pair="XRP"):
     def parse_bot(tupla):
         dic_saida ={
                 "bot_id": tupla[0],
@@ -61,17 +75,20 @@ def inicializa_bot(id, brl=100, distancia=0.06, pair="XRP"):
                 "qnt_brl_inicial": tupla[2],
                 "qnt_coin": tupla[3],
                 "qnt_brl_atual": tupla[4],
-                "distancia": tupla[5]
+                "grid_valor": tupla[5],
+                "limite_inferior": tupla[6],
+                "limite_superior": tupla[7],
+                "qnt_trade": tupla[8]
             }
         return dic_saida 
 
 
-    def create_bot(brl,distancia, pair):
+    def create_bot(brl, grid_valor,limite_inferior,limite_superior, qnt_trade, pair):
         conn = sqlite3.connect(BD_PATH)
         cur = conn.cursor()
         
-        sql = f'INSERT INTO bot(coin, qnt_brl_inicial, qnt_coin, qnt_brl_atual, dis) VALUES(?,?,?,?,?)'
-        data_tuple = (pair, brl, 0, brl, distancia)
+        sql = f'INSERT INTO bot(coin, qnt_brl_inicial, qnt_coin, qnt_brl_atual, grid_valor, limite_inferior, limite_superior,qnt_trade) VALUES(?,?,?,?,?,?,?,?)'
+        data_tuple = (pair, brl, 0, brl, grid_valor, limite_inferior, limite_superior, qnt_trade)
         cur.execute(sql,data_tuple)
         conn.commit()
         conn.close()
@@ -92,12 +109,11 @@ def inicializa_bot(id, brl=100, distancia=0.06, pair="XRP"):
     r_existe_bot, bot = r_get_bot(id)
 
     if not r_existe_bot:
-        create_bot(brl, distancia, pair)
-        bot = inicializa_bot(id, brl, pair)
+        create_bot(brl, grid_valor,limite_inferior, limite_superior, qnt_trade, pair)
+        bot = inicializa_bot(id, brl, grid_valor, limite_inferior, limite_superior, qnt_trade, pair)
         return bot
     else:
         return bot
-
 
 
 
@@ -132,16 +148,20 @@ class Boot_dados:
             "bot_id": elemento[1],
             "estado_ordem": elemento[2],
             "v_tag_ordem" : elemento[3],
+
             "valor_compra": float(elemento[4]),
             "qnt_comprada": float(elemento[5]), #arrumar
             "order_compra_id": elemento[6], #servidor vai passar
-        
+            "time_compra": elemento[7],
 
-            "valor_venda": float(elemento[7]),
-            "qnt_vendida": float(elemento[8]),
-            "order_venda_id": elemento[9], #servidor vai passar
-            "lucro": elemento[10],
-            "fee": elemento[11]
+            "valor_venda": float(elemento[8]),
+            "qnt_vendida": float(elemento[9]),
+            "order_venda_id": elemento[10], #servidor vai passar
+            "time_venda": elemento[11],
+
+
+            "lucro": elemento[12],
+            "fee": elemento[13]
            
         }
         return elemento
@@ -166,12 +186,17 @@ class Boot_dados:
             cur = conn.cursor()
             
             sql = f"""
-            INSERT INTO operacoes_bot(bot_id, estado_ordem, valor_compra, qnt_comprada, valor_venda, qnt_vendida)
+            INSERT INTO operacoes_bot(bot_id, estado_ordem, valor_compra, qnt_comprada, valor_venda, qnt_vendida, time_compra, time_venda)
             VALUES(?,?,?,?,?,?)
             """
-            data_tuple = (e["bot_id"], e["estado_ordem"],
-            e["valor_compra"], e["qnt_comprada"], 
-            e["valor_venda"], e["qnt_vendida"])
+            data_tuple = (e["bot_id"],
+            e["estado_ordem"],
+            e["valor_compra"],
+            e["qnt_comprada"], 
+            e["valor_venda"],
+            e["qnt_vendida"],
+            e["time_compra"],
+            e['time_venda'])
             cur.execute(sql,data_tuple)
             conn.commit()
             conn.close()
@@ -186,7 +211,7 @@ class Boot_dados:
             # order_compra_id INTEGER, #servidor vai passar
         
 
-            "valor_venda": str(valor_compra + self.dados_bot["distancia"]),
+            "valor_venda": str(valor_compra + self.dados_bot["grid_valor"]),
             "qnt_vendida": str(self.qnt_moeda_trade ),
             # order_venda_id INTEGER, #servidor vai passar
         }
@@ -222,6 +247,7 @@ class Boot_dados:
         self._get_ordens()
 
         ## UUMA DAS FUNCOES MAIS IMPORTANTES
+        # RODA NA COMPRA
         def cria_funca_resposta(e):
             def resposta_compra(recebe_resposta):
                 r_criou_operacao = recebe_resposta["status_code"] == 100
@@ -237,7 +263,8 @@ class Boot_dados:
                             cur = conn.cursor()
                             sql_str = f"""UPDATE operacoes_bot
                             SET estado_ordem = 'compra_criada',
-                            order_compra_id = '{ordem['order_id']}'
+                            order_compra_id = '{ordem['order_id']}',
+                            time_compra = {int(ordem['created_timestamp'])}
                             WHERE id == {elemento["id_ordem"]}"""
 
                             cur.execute(sql_str)
@@ -253,30 +280,39 @@ class Boot_dados:
                     if r_completada:
                         def atualiza_banco_dados(elemento, ordem):
                             valor_compra = float(ordem['executed_price_avg'])
-                            qnt_comprada = round(float(ordem['executed_quantity']) - float(ordem['fee']) -float(ordem["fee"]) * 0.3 ,8)
+                            qnt_comprada =  round(float(ordem['executed_quantity']),8)
+                            qnt_pode_ser_vendida = round(float(ordem['executed_quantity']) - float(ordem['fee']) -float(ordem["fee"]) * 0.3 ,8)
+
                             conn = sqlite3.connect(BD_PATH)
                             cur = conn.cursor()
                             sql_str = f"""UPDATE operacoes_bot
                             SET estado_ordem = 'compra_executada',
                             order_compra_id = {ordem['order_id']},
                             valor_compra = '{str(valor_compra)}',
-                            qnt_comprada = '{str(qnt_comprada)}' 
+                            qnt_comprada = '{str(qnt_comprada)}',
+                            qnt_vendida  = '{str(qnt_pode_ser_vendida)}',
+                            time_compra = {int(ordem['updated_timestamp'])}
                             WHERE id == {elemento['id_ordem']}"""
                             cur.execute(sql_str)
                             conn.commit()
                             conn.close()
 
-                            self.dados_bot["qnt_brl_atual"]=  self.dados_bot["qnt_brl_atual"] - (qnt_comprada *valor_compra)
-                            self.dados_bot["qnt_coin"]=  self.dados_bot["qnt_coin"] + qnt_comprada 
-                    
+                            # aqui tem q ser o valor  inteiro
+                            self.dados_bot["qnt_brl_atual"]=  self.dados_bot["qnt_brl_atual"] - (qnt_comprada * valor_compra)
+                            self.dados_bot["qnt_coin"]=  self.dados_bot["qnt_coin"] + qnt_pode_ser_vendida 
+    
                         atualiza_banco_dados(e,ordem)
+
+                else:
+                    print(recebe_resposta["error_message"])
+
             return resposta_compra
 
         def cria_compra(e):
             pair = self.dados_bot["coin"]
             valor     = e["valor_compra"]
-            qnt_moeda = e["qnt_comprada"]
-            r_existe_dinheiro = self.dados_bot["qnt_brl_atual"] > valor*qnt_moeda
+            qnt_moeda = e["qnt_vendida"]
+            r_existe_dinheiro = self.dados_bot["qnt_brl_atual"] > valor * qnt_moeda
             
             def get_livro(recebe_livo_resposta):
                 r_livro = recebe_livo_resposta["status_code"] == 100
@@ -330,7 +366,8 @@ class Boot_dados:
                             cur = conn.cursor()
                             sql_str = f"""UPDATE operacoes_bot
                             SET estado_ordem = 'venda_criada',
-                            order_venda_id = '{ordem['order_id']}'
+                            order_venda_id = '{ordem['order_id']}',
+                            time_venda = {int(ordem['created_timestamp'])}
                             WHERE id == {elemento["id_ordem"]}"""
 
                             cur.execute(sql_str)
@@ -349,7 +386,8 @@ class Boot_dados:
                             SET estado_ordem = 'venda_executada',
                             order_venda_id = {ordem['order_id']},
                             valor_venda = '{str(valor_venda)}',
-                            qnt_vendida = '{str(qnt_venda)}' 
+                            qnt_vendida = '{str(qnt_venda)}',
+                            time_venda = {int(ordem['updated_timestamp'])}
                             WHERE id == {elemento['id_ordem']}"""
                             cur.execute(sql_str)
                             conn.commit()
@@ -385,12 +423,13 @@ class Boot_dados:
                 cur = conn.cursor()
                 sql_str = f"""UPDATE operacoes_bot
                 SET estado_ordem = 'venda_aberta',
-                "valor_compra"= {str(e['valor_compra'])},
-                "qnt_comprada"= {str(e['qnt_comprada'])},
-                "valor_venda"= '{str(e['valor_compra'] + self.dados_bot["distancia"])}',
-                "qnt_vendida"= '{e['qnt_comprada']}'
+                "valor_venda"= '{str(e['valor_compra'] + self.dados_bot["grid_valor"])}'
                 WHERE id == {e["id_ordem"]}"""
 
+
+                # "valor_compra"= {str(e['valor_compra'])},
+                # "qnt_comprada"= {str(e['qnt_comprada'])},
+                # "qnt_vendida"= '{e['qnt_vendida']}'
                 cur.execute(sql_str)
                 conn.commit()
                 conn.close()
@@ -456,8 +495,8 @@ class Boot_dados:
 
 
 class Bot_melhorado(Boot_dados):
-    def __init__(self, dados_bot, qnt_trade):
-        super().__init__(dados_bot, qnt_trade)
+    def __init__(self, dados_bot):
+        super().__init__(dados_bot, dados_bot["qnt_trade"]) # arrumar, começar a limpar as api e segmentar as classes.
 
     def cria_ordens(self, v_tag_range_inf, valor_compra):
         def envia_ordem(e):
@@ -471,27 +510,16 @@ class Bot_melhorado(Boot_dados):
             data_tuple = (e["bot_id"],
             e["estado_ordem"], 
             e["v_tag_ordem"],
-            e["valor_compra"], e["qnt_comprada"], 
-            e["valor_venda"], e["qnt_vendida"])
+            e["valor_compra"], 
+            e["qnt_comprada"], 
+            e["valor_venda"], 
+            e["qnt_vendida"]
+            )
             cur.execute(sql,data_tuple)
             conn.commit()
             conn.close()
 
 
-        elemento = {
-            "bot_id": self.dados_bot["bot_id"],
-            "estado_ordem": "compra_aberta",
-
-            "v_tag_ordem" : str(v_tag_range_inf),
-            "valor_compra": str(valor_compra),
-            "qnt_comprada": str(self.qnt_moeda_trade), #arrumar
-            # order_compra_id INTEGER, #servidor vai passar
-        
-
-            "valor_venda": str(valor_compra + self.dados_bot["distancia"]),
-            "qnt_vendida": str(self.qnt_moeda_trade )
-            # order_venda_id INTEGER, #servidor vai passar
-        }
 
         
         
@@ -507,21 +535,40 @@ class Bot_melhorado(Boot_dados):
         r_checa_se_ja_abriu = len(list(filter(get_ordens_aberta_determinado, self.ls_ordens))) != 0
 
         if not r_checa_se_ja_abriu :
-            def get_order(recebe_livo_resposta):
-                r_livro = recebe_livo_resposta["status_code"] == 100
-                if r_livro:
-                    melhor_valor_compra = float(recebe_livo_resposta["response_data"]["orderbook"]["bids"][0]["limit_price"])
-                    melhor_valor_venda = float(recebe_livo_resposta["response_data"]["orderbook"]["asks"][0]["limit_price"])
-                    espread =  melhor_valor_venda - melhor_valor_compra
-                    bom_valor_book = round(melhor_valor_compra + espread * 0.1, 5)
-                    # r_melhor_valor_book = bom_valor_book > valor_compra
+            spr_aceito = 1.004 # analisar isso
+            elemento = {
+                "bot_id": self.dados_bot["bot_id"],
+                "estado_ordem": "compra_aberta",
 
-                    elemento["valor_compra"] = str(bom_valor_book)
-                    elemento["valor_venda"] = str(round(bom_valor_book + self.dados_bot["distancia"],5))
+                "v_tag_ordem" : str(v_tag_range_inf),
+                "valor_compra": str(round(v_tag_range_inf * spr_aceito,5)), # adicionando uns 3% para garantir que será realizado
+                "qnt_comprada": str(self.qnt_moeda_trade), #arrumar
+                # order_compra_id INTEGER, #servidor vai passar
+            
 
-                    envia_ordem(elemento)
+                "valor_venda": str(round(v_tag_range_inf * spr_aceito + self.dados_bot["grid_valor"],5)), # adicionando uns 3% para garantir que será realizado
+                "qnt_vendida": str(self.qnt_moeda_trade )
+                # order_venda_id INTEGER, #servidor vai passar
+            }
 
-            api_negociacao.list_orderbook(self.dados_bot["coin"], get_order)
+
+            envia_ordem(elemento)
+
+
+            # def get_order(recebe_livo_resposta):
+            #     r_livro = recebe_livo_resposta["status_code"] == 100
+            #     if r_livro:
+            #         melhor_valor_compra = float(recebe_livo_resposta["response_data"]["orderbook"]["bids"][0]["limit_price"])
+            #         melhor_valor_venda = float(recebe_livo_resposta["response_data"]["orderbook"]["asks"][0]["limit_price"])
+            #         espread =  melhor_valor_venda - melhor_valor_compra
+            #         bom_valor_book = round(melhor_valor_compra + espread * 0.1, 5)
+            #         # r_melhor_valor_book = bom_valor_book > valor_compra
+
+            #         elemento["valor_compra"] = str(bom_valor_book)
+            #         elemento["valor_venda"] = str(round(bom_valor_book + self.dados_bot["grid_valor"],5))
+
+                    
+            # api_negociacao.list_orderbook(self.dados_bot["coin"], get_order)
                
         else:
             print("nesse patamar ja tem um ordem em aberto para o nivel")
@@ -538,11 +585,22 @@ if __name__ == "__main__":
     # # bd.cria_ordens(2.08)
     # bd.atualiza_ordens()
     # print(bd.dados_bot)
+
+
+
+
     constroi_bd_bot()
-    constroi_bd_bot_operacao()
+    # constroi_bd_bot_operacao()
+    bot_1 = inicializa_bot(1, 20, 0.06, 1.9, 3.10, 0.5, "XRP")
+    bot_2 = inicializa_bot(2, 20, 0.04, 2.25, 2.7, 0.5, "XRP")
     
-    bot = inicializa_bot(7,20)
-    bd = Bot_melhorado(bot, 0.13)
-    bd.cria_ordens(2.44, 2.44)
-    bd.atualiza_ordens()
-    print(bd.dados_bot)
+    print(bot_2)
+
+
+    
+    # bot = inicializa_bot(7,20)
+    # bd = Bot_melhorado(bot, 0.13)
+    # bd.cria_ordens(2.44, 2.44)
+    # bd.atualiza_ordens()
+    # bd.print_ordens()
+    # print(bd.dados_bot)

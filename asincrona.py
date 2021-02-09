@@ -13,32 +13,83 @@ import trader as tr
 clear = lambda: os.system('cls')
 
 
-
 async def aciona_estrategia_aprimorada(bot_vivo, tempo=1):
     
     while True:
         try:
-            clear()
-            print(10*"-X-X-X")
-            buscador.atualiza_ultimo_criado("XRP")
-            v_limite_inf, v_limite_sup, v_close = es.faz_estrategia_live_aprimorada(1.9, 3.10, 0.06,"XRP")
+            # clear()
+            print(20*f"-{bot_vivo.dados_bot['bot_id']}-X")
+            buscador.atualiza_ultimo_criado(bot_vivo.dados_bot["coin"])
+            v_limite_inf, v_limite_sup, v_close = es.faz_estrategia_live_aprimorada(
+                        bot_vivo.dados_bot["limite_inferior"], 
+                        bot_vivo.dados_bot["limite_superior"],
+                        bot_vivo.dados_bot["grid_valor"], 
+                        bot_vivo.dados_bot["coin"])
 
             print("-------------------------->")
             bot_vivo.cria_ordens(v_limite_inf, v_close)
             bot_vivo.atualiza_ordens()
-            print(f"Está dentro do limite {v_limite_inf} ao  {v_limite_sup} o valor{v_close}")
+            print(f"Está dentro do limite {v_limite_inf} ao  {v_limite_sup} o valor {v_close}")
 
             print("-------------------------->")
             bot_vivo.print_ordens()
             print(f"O proximo em {datetime.datetime.now() + datetime.timedelta(minutes=tempo)}")
-            print(10*"-X-X-X")
+            print(20*f"-{bot_vivo.dados_bot['bot_id']}-X")
 
             await asyncio.sleep(tempo*60)
 
         except Exception as e: # work on python 3.x
             print("Na estrategia aconteceu alguma cois")
             print(e)
-        #     break
+            time.sleep(60)
+
+
+
+#     break
+
+
+async def async_main() -> None:
+    try:
+        # caso nao tenha nenhum bot no bd.
+        tr.constroi_bd_bot()
+        tr.constroi_bd_bot_operacao()
+        
+        bot_1 = tr.inicializa_bot(1, 20, 0.06, 1.9, 3.10, 0.5, "XRP")
+        bd_m = tr.Bot_melhorado(bot_1)
+
+
+        bot_2 = tr.inicializa_bot(2, 20, 0.04, 2.25, 2.7, 0.5,"XRP")
+        bd_m_2 = tr.Bot_melhorado(bot_2)
+
+        await asyncio.gather( 
+
+            aciona_estrategia_aprimorada(bd_m, 0.9),
+            aciona_estrategia_aprimorada(bd_m_2, 0.9)
+
+            )
+
+    except Exception as e:
+        print(e)
+        print("algum erro loco")
+
+asyncio.run(async_main())
+
+
+
+        # keep_printing("Pegando daods",1)
+        # keep_printing("Pegando daods",1),
+        # keep_printing("Ativando robo",5)
+
+# async def keep_printing(name :str ="", tempo=1)-> None:
+#     while True:
+#         print(f"{name} esta sendo ativo a cada {tempo} segundo")
+#         print(datetime.datetime.now())
+#         print(f"proximo em {datetime.datetime.now() + datetime.timedelta(minutes=1)}")
+#         try:
+#             await asyncio.sleep(tempo)
+#         except:
+#             print("por algum motivo parou de funcionar")
+#             break
 
 
 
@@ -84,41 +135,3 @@ async def aciona_estrategia_aprimorada(bot_vivo, tempo=1):
 #             print(e)
 #             print("O buscador de dados foi desligado")
 #             break
-
-
-
-
-async def async_main() -> None:
-    try:
-        bot = tr.inicializa_bot(7)
-        bd = tr.Bot_melhorado(bot, 0.13)
-
-
-        await asyncio.gather( 
-            # atualiza_dados(bd),
-            aciona_estrategia_aprimorada(bd, 0.8)
-            # aciona_estrategia(bd)
-            )
-
-    except Exception as e:
-        print(e)
-        print("algum erro loco")
-
-
-        # keep_printing("Pegando daods",1)
-        # keep_printing("Pegando daods",1),
-        # keep_printing("Ativando robo",5)
-
-# async def keep_printing(name :str ="", tempo=1)-> None:
-#     while True:
-#         print(f"{name} esta sendo ativo a cada {tempo} segundo")
-#         print(datetime.datetime.now())
-#         print(f"proximo em {datetime.datetime.now() + datetime.timedelta(minutes=1)}")
-#         try:
-#             await asyncio.sleep(tempo)
-#         except:
-#             print("por algum motivo parou de funcionar")
-#             break
-
-
-asyncio.run(async_main())

@@ -10,17 +10,21 @@ def pega_dados_since_db(tempo_passado, coin='XRP', BD_PATH = "dados_varias_coin.
     tm_ini = int(datetime_object.timestamp())
     con = sqlite3.connect(BD_PATH)
 
-    df = pd.read_sql_query(f'SELECT * from dados_trade WHERE date > {tm_ini} AND coin=="{coin}";', con)
-    df["Date"] =df['date'].map(datetime.datetime.fromtimestamp)
+    df = pd.read_sql_query(f'SELECT * from dados_trade WHERE date >= {tm_ini} AND coin=="{coin}";', con)
+    if not df.empty:
+        df["Date"] =df['date'].map(datetime.datetime.fromtimestamp)
 
-    r_existe_dados = len(df) !=0 
-    if r_existe_dados:
-        df_open = gera_pandas(df)
-        df_open.set_index('date', inplace=True)
-        return r_existe_dados, df_open
+        r_existe_dados = len(df) !=0 
+        if r_existe_dados:
+            df_open = gera_pandas(df)
+            df_open.set_index('date', inplace=True)
+            return r_existe_dados, df_open
+        else:
+            print("deu pau e nao tem os dados")
+            return r_existe_dados, None
     else:
-        print("deu pau e nao tem os dados")
-        return r_existe_dados, None 
+        print("Banco de dados vazio")
+        return False, None
 
 
 def gera_pandas(df):
@@ -73,8 +77,8 @@ def calcula_candle(df, d_inicio, d_fim):
 
 
 def get_ultimo_candle_from_db(coin="XRP", tempo=5):
-    api_dados.atualiza_ultimo_criado("XRP")
-    r_existe_dados, df_open = pega_dados_since_db(5)
+    api_dados.atualiza_ultimo_criado(coin)
+    r_existe_dados, df_open = pega_dados_since_db(5, coin)
     # .iloc[-1]["close"]
     return df_open
     

@@ -20,28 +20,37 @@ async def aciona_estrategia_aprimorada(bot_vivo, tempo=1):
             # clear()
             print(20*f"-{bot_vivo.dados_bot['bot_id']}-X")
             buscador.atualiza_ultimo_criado(bot_vivo.dados_bot["coin"])
-            v_limite_inf, v_limite_sup, v_close = es.faz_estrategia_live_aprimorada(
+            v_limite_inf, v_limite_sup,v_close, r_valor_dentro_limite = es.faz_estrategia_live_aprimorada(
                         bot_vivo.dados_bot["limite_inferior"], 
                         bot_vivo.dados_bot["limite_superior"],
                         bot_vivo.dados_bot["grid_valor"], 
                         bot_vivo.dados_bot["coin"])
 
             print("-------------------------->")
-            bot_vivo.cria_ordens(v_limite_inf, v_close)
-            bot_vivo.atualiza_ordens()
-            print(f"Está dentro do limite {v_limite_inf} ao  {v_limite_sup} o valor {v_close}")
 
-            print("-------------------------->")
-            bot_vivo.print_ordens()
+            if r_valor_dentro_limite :
+
+                bot_vivo.cria_ordens(v_limite_inf, v_close)
+                bot_vivo.atualiza_ordens()
+                print(f"Está dentro do limite {v_limite_inf} ao  {v_limite_sup} o valor {v_close}")
+
+                print("-------------------------->")
+                bot_vivo.print_ordens()
+                
+            else:
+                print(f'O preço {v_close} Esta fora do limite máximo de {bot_vivo.dados_bot["limite_superior"]} ou minimo {bot_vivo.dados_bot["limite_inferior"]}')
+                bot_vivo.print_ordens()
+
             print(f"O proximo em {datetime.datetime.now() + datetime.timedelta(minutes=tempo)}")
             print(20*f"-{bot_vivo.dados_bot['bot_id']}-X")
-
             await asyncio.sleep(tempo*60)
 
         except Exception as e: # work on python 3.x
-            print("Na estrategia aconteceu alguma cois")
+            print("Na estrategia aconteceu alguma problema")
             print(e)
-            time.sleep(60)
+            # para nao ser block caso um dos bot exploda.
+            await asyncio.sleep(tempo/2*60)
+            # time.sleep(60)
 
 
 
@@ -61,10 +70,19 @@ async def async_main() -> None:
         bot_2 = tr.inicializa_bot(2, 20, 0.04, 2.25, 2.7, 0.5,"XRP")
         bd_m_2 = tr.Bot_melhorado(bot_2)
 
-        await asyncio.gather( 
+        bot_3= tr.inicializa_bot(9, 40, 0.04, 2.7, 4.2, 1,"XRP")
+        bd_m_3 = tr.Bot_melhorado(bot_3)
 
+        # bot_3 = tr.inicializa_bot(4, 50, 0.04, 5, 5.8, 1.03, "USDC")
+        # bd_m_3 = tr.Bot_melhorado(bot_3)
+
+
+
+        await asyncio.gather( 
+            
             aciona_estrategia_aprimorada(bd_m, 0.9),
-            aciona_estrategia_aprimorada(bd_m_2, 0.9)
+            aciona_estrategia_aprimorada(bd_m_2, 0.9),
+            aciona_estrategia_aprimorada(bd_m_3, 0.9)
 
             )
 

@@ -58,22 +58,28 @@ def range_do_valor(valor, limite_inferior, limite_superior, variacao):
         range_bot = zip(range_superior,range_inferior)
         return range_bot
 
-    range_bot = get_range(limite_inferior,limite_superior,variacao)
+    valor = round(valor,3)
+    range_bot = get_range(limite_inferior, limite_superior, variacao)
+    r_valor_dentro_limite = False
+    rs_i = 0
+    rs_s = 0
     for rang_sup, range_inf in range_bot:
-        r_e_o_range = valor>range_inf and valor< rang_sup
-        if r_e_o_range:
+        r_valor_dentro_limite = valor >= range_inf and valor <= rang_sup
+        if r_valor_dentro_limite:
             rs_i = range_inf
             rs_s = rang_sup
+            r_valor_dentro_limite = True
             break
-    return round(range_inf,8), round(rang_sup,8)
+
+    return rs_i, rs_s, r_valor_dentro_limite
 
 
 def faz_estrategia_live_aprimorada(limite_inferior, limite_superior, grid_valor, coin):
     # estrategia de grid para abrir as ordens de compra quando o candle tiver no range.
     db_candl = pbd.get_ultimo_candle_from_db(coin)
     v_close = db_candl.iloc[-1]["close"]
-    v_limite_inf, v_limite_sup = range_do_valor(v_close,limite_inferior,limite_superior,grid_valor)
-    return v_limite_inf, v_limite_sup, v_close
+    v_limite_inf, v_limite_sup, r_valor_dentro_limite = range_do_valor(v_close, limite_inferior,limite_superior, grid_valor)
+    return v_limite_inf, v_limite_sup, v_close, r_valor_dentro_limite
 
 
 

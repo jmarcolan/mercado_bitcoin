@@ -213,6 +213,8 @@ class Boot_dados:
 
             "valor_venda": str(valor_compra + self.dados_bot["grid_valor"]),
             "qnt_vendida": str(self.qnt_moeda_trade ),
+            "time_compra": 0,
+            "time_venda": 0
             # order_venda_id INTEGER, #servidor vai passar
         }
 
@@ -280,6 +282,7 @@ class Boot_dados:
                     if r_completada:
                         def atualiza_banco_dados(elemento, ordem):
                             valor_compra = float(ordem['executed_price_avg'])
+                            valor_venda = round(valor_compra + self.dados_bot["grid_valor"] )
                             qnt_comprada =  round(float(ordem['executed_quantity']),8)
                             qnt_pode_ser_vendida = round(float(ordem['executed_quantity']) - float(ordem['fee']) -float(ordem["fee"]) * 0.3 ,8)
 
@@ -289,6 +292,7 @@ class Boot_dados:
                             SET estado_ordem = 'compra_executada',
                             order_compra_id = {ordem['order_id']},
                             valor_compra = '{str(valor_compra)}',
+                            valor_venda = '{valor_venda}',
                             qnt_comprada = '{str(qnt_comprada)}',
                             qnt_vendida  = '{str(qnt_pode_ser_vendida)}',
                             time_compra = {int(ordem['updated_timestamp'])}
@@ -323,9 +327,9 @@ class Boot_dados:
                     bom_valor_book = melhor_valor_compra + espread * 0.2
                     r_melhor_valor_book = bom_valor_book < valor
                     if r_melhor_valor_book:
-                        e["valor_compra"] = bom_valor_book
+                        e["valor_compra"] = round(bom_valor_book,5)
                     
-                    api_negociacao.place_buy_order(str(e["valor_compra"]), str(qnt_moeda), pair, cria_funca_resposta(e))
+                    api_negociacao.place_buy_order(str(round(e["valor_compra"],5)), str(qnt_moeda), pair, cria_funca_resposta(e))
 
                         
                         
@@ -451,9 +455,9 @@ class Boot_dados:
 
         def get_venda_aberta(e):
             # se ta liberado para venda abrir uma ordem no mercado bitcoin
-            valor     = e["valor_venda"]
+            valor     = round(e["valor_venda"],5)
             qnt_moeda = e["qnt_vendida"]
-            r_existe_dinheiro = self.dados_bot["qnt_brl_atual"] > valor*qnt_moeda
+            r_existe_dinheiro = self.dados_bot["qnt_brl_atual"] > valor * qnt_moeda
             pair = self.dados_bot["coin"]
    
             api_negociacao.place_sell_order(str(valor), str(qnt_moeda), pair, create_funcao_venda(e))
@@ -499,6 +503,8 @@ class Bot_melhorado(Boot_dados):
         super().__init__(dados_bot, dados_bot["qnt_trade"]) # arrumar, começar a limpar as api e segmentar as classes.
 
     def cria_ordens(self, v_tag_range_inf, valor_compra):
+        v_tag_range_inf = round(v_tag_range_inf,4)
+
         def envia_ordem(e):
             conn = sqlite3.connect(BD_PATH)
             cur = conn.cursor()
@@ -591,12 +597,16 @@ if __name__ == "__main__":
 
     constroi_bd_bot()
     # constroi_bd_bot_operacao()
-    bot_1 = inicializa_bot(1, 20, 0.06, 1.9, 3.10, 0.5, "XRP")
-    bot_2 = inicializa_bot(2, 20, 0.04, 2.25, 2.7, 0.5, "XRP")
+    # bot_1 = inicializa_bot(1, 20, 0.06, 1.9, 3.10, 0.5, "XRP")
+    # bot_2 = inicializa_bot(2, 20, 0.04, 2.25, 2.7, 0.5, "XRP")
+
+    bot_3 = inicializa_bot(3, 50, 0.04, 5, 5.7, 1,"USDC")
+    bd_m_3 = Bot_melhorado(bot_3)
+    bd_m_3.atualiza_ordens()
+    # print(bot_2)
     
-    print(bot_2)
-
-
+    # bd_m_3.cria_ordens(5, 5)
+    
     
     # bot = inicializa_bot(7,20)
     # bd = Bot_melhorado(bot, 0.13)

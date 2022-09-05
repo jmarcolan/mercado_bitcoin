@@ -1,0 +1,4 @@
+chave_secreta.json
+*.vscode
+*.db
+*__pycache__
